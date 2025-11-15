@@ -1,4 +1,4 @@
-import express from "express";
+import express, { json } from "express";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 
@@ -10,8 +10,8 @@ app.use(express.json());
 // ==========================
 // ODOO CONFIGURATION
 // ==========================
-const ODOO_URL = "https://netzero1.odoo.com/jsonrpc";
-const ODOO_DB = "netzero1";
+const ODOO_URL = process.env.URL;
+const ODOO_DB = process.env.DB_HOST;
 const ODOO_API_KEY = process.env.API_KEY;
 const ODOO_USER = process.env.USERNAME;
 
@@ -27,16 +27,20 @@ async function odooRPC(model, method, args = [], kwargs = {}) {
     },
     id: new Date().getTime(),
   };
+  
 
   const res = await fetch(ODOO_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-
+   
   const data = await res.json();
   if (data.error) throw new Error(JSON.stringify(data.error));
+  
+ 
   return data.result;
+  
 }
 
 // ==========================
@@ -155,6 +159,40 @@ app.get("/api/cement/emission", async (req, res) => {
   }
 });
 
+
+
+
+app.get("/sales",(res,req)=>{
+  async function fetchSalesOrderLines() {
+  try {
+    const saleLines = await odooRPC(
+      "sale.order.line",      // Model
+      "search_read",          // Method
+      [[]],                   // Domain → [] means fetch all
+      {
+        fields: [
+          "order_id",         // link to sales order number
+          "product_id",       // product name
+          "product_uom_qty",  // QUANTITY SOLD (this is what you need)
+          "price_unit",
+          "price_subtotal"
+        ],
+        limit: 100
+      }
+    );
+
+    console.log("📦 Sale Order Lines with Quantities:", saleLines);
+    return saleLines;
+
+  } catch (error) {
+    console.error("❌ Error fetching sales quantities:", error.message);
+    return [];
+  }
+}
+  fetchSalesOrderLines();
+
+res.json({message:"hello world"});
+} );
 // ==========================
 // START SERVER
 // ==========================
